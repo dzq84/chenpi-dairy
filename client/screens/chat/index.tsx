@@ -108,33 +108,19 @@ export default function ChatScreen() {
     setIsTyping(true);
 
     try {
-      // 调用后端 LLM API
-      /**
-       * 服务端文件：server/src/routes/chat.ts
-       * 接口：POST /api/v1/chat
-       * Body 参数：messages: Array<{role: string, content: string}>
-       */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
+      // 构建完整的消息历史（包含刚发送的用户消息）
+      const allMessages = [
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+        { role: userMessage.role, content: userMessage.content },
+      ];
 
-      if (!response.ok) {
-        throw new Error('发送消息失败');
-      }
-
-      // 处理流式响应
+      // 流式对话
       const sse = new RNSSE(
         `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/stream`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: messages.map((m) => ({ role: m.role, content: m.content })),
-          }),
+          body: JSON.stringify({ messages: allMessages }),
         }
       );
 
