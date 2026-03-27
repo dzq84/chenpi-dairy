@@ -2,12 +2,11 @@ FROM node:20 AS frontend
 
 WORKDIR /app/client
 
-# 复制前端依赖
-COPY client/package.json ./
-RUN npm install --legacy-peer-deps
-
-# 复制前端源码
+# 复制全部前端文件
 COPY client/ ./
+
+# 安装依赖（跳过 postinstall 脚本）
+RUN npm install --legacy-peer-deps --ignore-scripts
 
 # 设置前端环境变量：API 地址为同源（空字符串表示相对路径）
 ENV EXPO_PUBLIC_BACKEND_BASE_URL=""
