@@ -191,11 +191,23 @@ router.post('/', async (req, res) => {
 // DELETE /api/v1/reviews/:id - 删除回顾
 router.delete('/:id', async (req, res) => {
   try {
-    // TODO: 实现删除功能
-    res.json({
-      success: true,
-      message: '回顾删除成功',
-    });
+    const { id } = req.params;
+    let found = false;
+
+    const dailyIdx = dailyReviews.findIndex(r => r.id === id);
+    if (dailyIdx !== -1) { dailyReviews.splice(dailyIdx, 1); found = true; }
+
+    const weeklyIdx = weeklyReviews.findIndex(r => r.id === id);
+    if (weeklyIdx !== -1) { weeklyReviews.splice(weeklyIdx, 1); found = true; }
+
+    const monthlyIdx = monthlyReviews.findIndex(r => r.id === id);
+    if (monthlyIdx !== -1) { monthlyReviews.splice(monthlyIdx, 1); found = true; }
+
+    if (!found) {
+      return res.status(404).json({ error: '回顾不存在' });
+    }
+
+    res.json({ success: true, message: '回顾删除成功' });
   } catch (error) {
     console.error('删除回顾错误:', error);
     res.status(500).json({ error: '服务器错误' });
