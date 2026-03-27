@@ -6,7 +6,7 @@ export const createStyles = (theme: Theme) => {
     scrollContent: {
       paddingHorizontal: Spacing.md,
       paddingTop: Spacing.xl,
-      paddingBottom: 120,
+      paddingBottom: 32,
     },
     header: {
       marginBottom: Spacing.md,

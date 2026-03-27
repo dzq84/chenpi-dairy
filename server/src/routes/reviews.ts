@@ -8,8 +8,45 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'https://642222.xyz';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.4';
 
-// 内存存储所有回顾
-let allReviews: any[] = [];
+// 内存存储所有回顾 - 预置一些示例数据
+let allReviews: any[] = [
+  {
+    id: 'demo-daily-1',
+    type: 'daily',
+    date: new Date().toISOString(),
+    title: '阳光穿过窗帘',
+    summary: '今天的心情像春天的微风，轻柔而温暖。',
+    content: '早晨醒来，阳光从窗帘缝隙中洒进来，心情突然变得很好。上午处理了一些工作，虽然有点忙碌，但效率很高。中午和朋友一起吃饭，聊了很多有趣的事情。下午读了一会儿书，感觉内心很平静。今天最大的收获是学会了享受当下的每一个瞬间。',
+    mood: 'happy',
+    keywords: ['阳光', '平静', '享受当下'],
+    journalCount: 3,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-weekly-1',
+    type: 'weekly',
+    date: new Date().toISOString(),
+    title: '在忙碌中找到节奏',
+    summary: '这一周学会了和自己的情绪共处，发现慢下来也是一种力量。',
+    content: '这周的工作节奏比较快，但我学会了在忙碌中给自己留出喘息的空间。周三的时候感觉有些疲惫，于是晚上提早休息，第二天状态就好了很多。\n\n周末尝试了冥想和散步，发现这些看似简单的事情，对恢复精力特别有效。和家人视频通话时，感受到了久违的温暖。\n\n这周最重要的领悟是：不需要每天都元气满满，允许自己有低落的时候，然后温柔地陪伴自己走过去。',
+    mood: 'calm',
+    keywords: ['节奏', '休息', '自我关怀', '温暖'],
+    journalCount: 7,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'demo-monthly-1',
+    type: 'monthly',
+    date: new Date().toISOString(),
+    title: '三月：种下希望的种子',
+    summary: '这个月在不确定中找到了自己的方向，每一步都算数。',
+    content: '回顾这个月，经历了一些起伏，但总体是向上的。\n\n在工作上完成了一个有挑战性的项目，虽然过程中有过怀疑和焦虑，但最终的结果让我对自己更有信心了。\n\n生活上养成了每天写日记的习惯，这个小小的改变让我对自己的情绪有了更清晰的觉察。我发现当我把感受写下来的时候，那些纷乱的想法就会变得清晰。\n\n这个月最想对自己说的话是：你已经做得很好了，继续保持这份对生活的热爱和好奇心。每一天都是新的开始，每一步都值得被记住。',
+    mood: 'happy',
+    keywords: ['成长', '坚持', '觉察', '希望'],
+    journalCount: 15,
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+  },
+];
 
 // 请求参数验证
 const reviewsQuerySchema = z.object({

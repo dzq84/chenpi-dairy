@@ -8,7 +8,7 @@ export const createStyles = (theme: Theme) => {
     },
     scrollContent: {
       padding: Spacing.sm,
-      paddingBottom: 120,
+      paddingBottom: 32,
     },
     userCard: {
       flexDirection: 'row',

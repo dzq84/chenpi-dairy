@@ -11,7 +11,7 @@ export const createStyles = (theme: Theme) => {
       flexGrow: 1,
       paddingHorizontal: Spacing.md,
       paddingTop: Spacing.xl,
-      paddingBottom: 120,
+      paddingBottom: 32,
     },
     header: {
       marginBottom: Spacing.md,

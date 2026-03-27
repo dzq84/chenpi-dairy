@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
@@ -7,25 +7,20 @@ import { useTheme } from '@/hooks/useTheme';
 export default function TabLayout() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Web 端用较小的底部间距
+  const bottomPadding = Platform.OS === 'web' ? 8 : insets.bottom;
+
   return (
     <Tabs screenOptions={{
       headerShown: false,
       tabBarStyle: {
-        position: 'absolute',
-        bottom: Platform.OS === 'web' ? 24 : 24,
-        left: 24,
-        right: 24,
         backgroundColor: theme.navBg,
-        borderRadius: 999,
-        height: 56,
-        paddingBottom: 0,
-        paddingTop: 0,
-        borderTopWidth: 0,
-        elevation: 0,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 40,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(26, 26, 26, 0.06)',
+        height: 52 + bottomPadding,
+        paddingBottom: bottomPadding,
+        paddingTop: 4,
       },
       tabBarActiveTintColor: theme.textPrimary,
       tabBarInactiveTintColor: 'rgba(26, 26, 26, 0.3)',
@@ -33,10 +28,9 @@ export default function TabLayout() {
         fontSize: 11,
         fontWeight: '600',
         letterSpacing: 0.3,
-        textTransform: 'uppercase',
       },
-      tabBarItemStyle: {
-        paddingVertical: 6,
+      tabBarIconStyle: {
+        marginBottom: -2,
       },
     }}>
       <Tabs.Screen
@@ -44,7 +38,7 @@ export default function TabLayout() {
         options={{
           title: '记录',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="pen-to-square" size={18} color={color} />
+            <FontAwesome6 name="pen-to-square" size={16} color={color} />
           ),
         }}
       />
@@ -53,7 +47,7 @@ export default function TabLayout() {
         options={{
           title: '回顾',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="clock-rotate-left" size={18} color={color} />
+            <FontAwesome6 name="clock-rotate-left" size={16} color={color} />
           ),
         }}
       />
@@ -62,7 +56,7 @@ export default function TabLayout() {
         options={{
           title: '我的',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="user" size={18} color={color} />
+            <FontAwesome6 name="user" size={16} color={color} />
           ),
         }}
       />
