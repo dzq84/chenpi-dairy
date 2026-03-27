@@ -157,7 +157,7 @@ export default function DailyEntriesScreen() {
   };
 
   // 保存修改
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editText.trim() && editImages.length === 0 && !editAudioUri) {
       Toast.show({
         type: 'error',
@@ -167,27 +167,51 @@ export default function DailyEntriesScreen() {
       return;
     }
 
-    setEntries(
-      entries.map((entry) =>
-        entry.id === editingEntry.id
-          ? { ...entry, text: editText.trim(), images: editImages, audio_uri: editAudioUri }
-          : entry
-      )
-    );
+    try {
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/journals/${editingEntry.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: editText.trim(),
+            images: editImages,
+            audio_uri: editAudioUri,
+          }),
+        }
+      );
 
-    setModalVisible(false);
-    setEditingEntry(null);
-    setEditText('');
-    setEditImages([]);
-    setEditAudioUri(null);
+      if (!response.ok) throw new Error('保存失败');
 
-    Toast.show({
-      type: 'success',
-      text1: '✨ 修改成功',
-      text2: '已保存您的修改',
-      position: 'bottom',
-      visibilityTime: 2000,
-    });
+      // 更新本地状态
+      const { data } = await response.json();
+      setEntries(
+        entries.map((entry) =>
+          entry.id === editingEntry.id ? data : entry
+        )
+      );
+
+      setModalVisible(false);
+      setEditingEntry(null);
+      setEditText('');
+      setEditImages([]);
+      setEditAudioUri(null);
+
+      Toast.show({
+        type: 'success',
+        text1: '✨ 修改成功',
+        text2: '已保存您的修改',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+    } catch (error) {
+      console.error('保存失败:', error);
+      Toast.show({
+        type: 'error',
+        text1: '保存失败',
+        text2: '请重试',
+      });
+    }
   };
 
   // 删除记录
@@ -200,15 +224,30 @@ export default function DailyEntriesScreen() {
         {
           text: '删除',
           style: 'destructive',
-          onPress: () => {
-            setEntries(entries.filter((entry) => entry.id !== entryId));
-            Toast.show({
-              type: 'success',
-              text1: '已删除',
-              text2: '记录已删除',
-              position: 'bottom',
-              visibilityTime: 2000,
-            });
+          onPress: async () => {
+            try {
+              const response = await fetch(
+                `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/journals/${entryId}`,
+                { method: 'DELETE' }
+              );
+              if (!response.ok && response.status !== 204) throw new Error('删除失败');
+
+              setEntries(entries.filter((entry) => entry.id !== entryId));
+              Toast.show({
+                type: 'success',
+                text1: '已删除',
+                text2: '记录已删除',
+                position: 'bottom',
+                visibilityTime: 2000,
+              });
+            } catch (error) {
+              console.error('删除失败:', error);
+              Toast.show({
+                type: 'error',
+                text1: '删除失败',
+                text2: '请重试',
+              });
+            }
           },
         },
       ]

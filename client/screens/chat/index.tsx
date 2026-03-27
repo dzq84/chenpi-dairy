@@ -17,7 +17,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { createStyles } from './styles';
-import RNSSE from 'react-native-sse';
+
+// Web 端不支持 react-native-sse，用 fetch stream 替代
 
 // 场景定义
 const SCENES = [
@@ -114,16 +115,6 @@ export default function ChatScreen() {
         { role: userMessage.role, content: userMessage.content },
       ];
 
-      // 流式对话
-      const sse = new RNSSE(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/stream`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: allMessages }),
-        }
-      );
-
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -133,32 +124,54 @@ export default function ChatScreen() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      sse.addEventListener('message', (event) => {
-        if (event.data === '[DONE]') {
-          sse.close();
-          setIsTyping(false);
-          return;
+      // 使用 fetch stream 替代 react-native-sse（Web 兼容）
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/stream`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: allMessages }),
         }
+      );
 
-        try {
-          const content = event.data || '';
-          const data = JSON.parse(content) as { content: string };
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, content: msg.content + (data.content || '') }
-                : msg
-            )
-          );
-        } catch (e) {
-          console.error('解析消息失败:', e);
+      if (!response.ok || !response.body) {
+        throw new Error('请求失败');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          const data = trimmed.slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data) as { content?: string };
+            if (parsed.content) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessage.id
+                    ? { ...msg, content: msg.content + parsed.content }
+                    : msg
+                )
+              );
+            }
+          } catch {}
         }
-      });
+      }
 
-      sse.addEventListener('error', (error) => {
-        console.error('SSE 错误:', error);
-        setIsTyping(false);
-      });
+      setIsTyping(false);
     } catch (error) {
       console.error('发送消息失败:', error);
       setIsTyping(false);

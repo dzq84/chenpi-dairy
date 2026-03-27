@@ -1,33 +1,35 @@
 import express from 'express';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { insertJournalEntrySchema } from '@/storage/database/shared/schema';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 const router = express.Router();
+
+// 内存存储（替代 Supabase，重启后数据会丢失）
+let journalEntries: any[] = [];
+
+// 创建日记验证
+const insertJournalEntrySchema = z.object({
+  user_id: z.string().optional(),
+  text: z.string().optional(),
+  mood: z.enum(["happy", "calm", "sad"]).nullable().optional(),
+  images: z.array(z.string()).optional(),
+  audio_uri: z.string().nullable().optional(),
+  audio_duration: z.number().int().nullable().optional(),
+});
 
 // 获取今日日记列表
 router.get('/today', async (req, res) => {
   try {
-    const client = getSupabaseClient();
-
-    // 获取今天的日期范围
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-    const { data, error } = await client
-      .from('journal_entries')
-      .select('*')
-      .gte('created_at', startOfDay.toISOString())
-      .lt('created_at', endOfDay.toISOString())
-      .order('created_at', { ascending: false });
+    const todayEntries = journalEntries.filter((entry) => {
+      const createdAt = new Date(entry.created_at);
+      return createdAt >= startOfDay && createdAt < endOfDay;
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    if (error) {
-      console.error('查询今日日记失败:', error);
-      return res.status(500).json({ error: '查询失败' });
-    }
-
-    res.json({ data: data || [] });
+    res.json({ data: todayEntries });
   } catch (err: any) {
     console.error('查询今日日记异常:', err);
     res.status(500).json({ error: err.message || '服务器错误' });
@@ -37,24 +39,19 @@ router.get('/today', async (req, res) => {
 // 创建日记
 router.post('/', async (req, res) => {
   try {
-    const client = getSupabaseClient();
-
-    // 验证请求数据
     const validatedData = insertJournalEntrySchema.parse(req.body);
 
-    // 插入日记
-    const { data, error } = await client
-      .from('journal_entries')
-      .insert(validatedData)
-      .select()
-      .single();
+    const newEntry = {
+      id: randomUUID(),
+      ...validatedData,
+      images: validatedData.images || [],
+      created_at: new Date().toISOString(),
+      updated_at: null,
+    };
 
-    if (error) {
-      console.error('创建日记失败:', error);
-      return res.status(500).json({ error: '创建失败' });
-    }
+    journalEntries.push(newEntry);
 
-    res.status(201).json({ data });
+    res.status(201).json({ data: newEntry });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
       console.error('数据验证失败:', err.issues);
@@ -69,24 +66,13 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const client = getSupabaseClient();
+    const entry = journalEntries.find((e) => e.id === id);
 
-    const { data, error } = await client
-      .from('journal_entries')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('查询日记失败:', error);
-      return res.status(500).json({ error: '查询失败' });
-    }
-
-    if (!data) {
+    if (!entry) {
       return res.status(404).json({ error: '日记不存在' });
     }
 
-    res.json({ data });
+    res.json({ data: entry });
   } catch (err: any) {
     console.error('查询日记异常:', err);
     res.status(500).json({ error: err.message || '服务器错误' });
@@ -97,35 +83,22 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const client = getSupabaseClient();
-
-    // 验证请求数据
     const validatedData = insertJournalEntrySchema.partial().parse(req.body);
 
-    // 更新日记
-    const { data, error } = await client
-      .from('journal_entries')
-      .update({
-        ...validatedData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      console.error('更新日记失败:', error);
-      return res.status(500).json({ error: '更新失败' });
-    }
-
-    if (!data) {
+    const index = journalEntries.findIndex((e) => e.id === id);
+    if (index === -1) {
       return res.status(404).json({ error: '日记不存在' });
     }
 
-    res.json({ data });
+    journalEntries[index] = {
+      ...journalEntries[index],
+      ...validatedData,
+      updated_at: new Date().toISOString(),
+    };
+
+    res.json({ data: journalEntries[index] });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      console.error('数据验证失败:', err.issues);
       return res.status(400).json({ error: '数据验证失败', details: err.issues });
     }
     console.error('更新日记异常:', err);
@@ -137,18 +110,13 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const client = getSupabaseClient();
+    const index = journalEntries.findIndex((e) => e.id === id);
 
-    const { error } = await client
-      .from('journal_entries')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('删除日记失败:', error);
-      return res.status(500).json({ error: '删除失败' });
+    if (index === -1) {
+      return res.status(404).json({ error: '日记不存在' });
     }
 
+    journalEntries.splice(index, 1);
     res.status(204).send();
   } catch (err: any) {
     console.error('删除日记异常:', err);
