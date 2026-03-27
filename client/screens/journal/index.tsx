@@ -54,22 +54,7 @@ export default function JournalScreen() {
     location: '上海',
   };
 
-  // 申请权限
-  useEffect(() => {
-    (async () => {
-      // 录音权限
-      const { status } = await Audio.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
-
-      // 相机权限
-      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
-      setCameraPermission(cameraStatus.status === 'granted' ? 'granted' : 'denied');
-
-      // 相册权限
-      const libraryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      setLibraryPermission(libraryStatus.status === 'granted' ? 'granted' : 'denied');
-    })();
-  }, []);
+  // 不再自动请求权限，改为用户操作时按需请求
 
   // 选择照片
   const handlePickImage = async () => {
