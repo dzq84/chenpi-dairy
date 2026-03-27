@@ -1,0 +1,17 @@
+{
+  "name": "chenpi-dairy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI日记 - 心情记录与AI陪聊应用",
+  "scripts": {
+    "dev": "cd server && npm run dev",
+    "build": "cd server && npm run build",
+    "start": "cd server && npm run start",
+    "install:all": "cd server && npm install"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,311 @@
+import { StyleSheet } from 'react-native';
+import { Spacing, BorderRadius, Theme } from '@/constants/theme';
+
+export const createStyles = (theme: Theme) => {
+  return StyleSheet.create({
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: Spacing['2xl'],
+      paddingTop: Spacing['5xl'],
+      paddingBottom: Spacing['5xl'],
+    },
+    header: {
+      marginBottom: Spacing['2xl'],
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.lg,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+    },
+    headerContent: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: theme.textPrimary,
+      marginBottom: Spacing.xs,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: theme.textMuted,
+      lineHeight: 22,
+    },
+    statsSection: {
+      marginBottom: Spacing['2xl'],
+    },
+    statCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      borderRadius: BorderRadius['2xl'],
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+      padding: Spacing.lg,
+      gap: Spacing.lg,
+    },
+    statInfo: {
+      flex: 1,
+    },
+    statNumber: {
+      fontSize: 28,
+      fontWeight: '700',
+      lineHeight: 32,
+    },
+    statLabel: {
+      fontSize: 13,
+      marginTop: 2,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: Spacing['5xl'],
+    },
+    emptyText: {
+      fontSize: 16,
+      marginTop: Spacing.lg,
+      marginBottom: Spacing.xs,
+    },
+    emptyHint: {
+      fontSize: 14,
+    },
+    entryCard: {
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      borderRadius: BorderRadius['2xl'],
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+      padding: Spacing.lg,
+      marginBottom: Spacing.md,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    entryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
+    },
+    entryMeta: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    entryTimeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+    },
+    entryTime: {
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    topicBadge: {
+      backgroundColor: 'rgba(123,110,246,0.1)',
+      borderRadius: BorderRadius.full,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 4,
+    },
+    topicText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    moodBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    moodIcon: {
+      fontSize: 16,
+    },
+    moodText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    entryActions: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+    },
+    actionButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    entryText: {
+      fontSize: 15,
+      lineHeight: 24,
+      color: theme.textPrimary,
+      marginBottom: Spacing.sm,
+    },
+    entryImages: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+      marginBottom: Spacing.sm,
+    },
+    entryImageThumbnail: {
+      width: 100,
+      height: 100,
+      borderRadius: BorderRadius.md,
+    },
+    entryAudio: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      backgroundColor: 'rgba(123,110,246,0.1)',
+      borderRadius: BorderRadius.md,
+      padding: Spacing.sm,
+      alignSelf: 'flex-start',
+    },
+    entryAudioText: {
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalContent: {
+      backgroundColor: theme.backgroundRoot,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: Spacing.xl,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderLight,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    modalBody: {
+      padding: Spacing.xl,
+    },
+    editInput: {
+      fontSize: 16,
+      color: theme.textPrimary,
+      minHeight: 200,
+      textAlignVertical: 'top',
+    },
+    charCount: {
+      textAlign: 'right',
+      marginTop: Spacing.sm,
+      fontSize: 13,
+    },
+    mediaSection: {
+      marginTop: Spacing.lg,
+    },
+    mediaHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
+    },
+    mediaTitle: {
+      fontSize: 15,
+      fontWeight: '500',
+    },
+    addMediaButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      backgroundColor: 'rgba(123,110,246,0.1)',
+      borderRadius: BorderRadius.full,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 6,
+    },
+    addMediaText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    removeText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    imagesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+    },
+    imageItem: {
+      position: 'relative',
+      width: 100,
+      height: 100,
+    },
+    imageThumbnail: {
+      width: '100%',
+      height: '100%',
+      borderRadius: BorderRadius.md,
+    },
+    imageRemoveButton: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      borderRadius: 9999,
+      width: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    audioItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      backgroundColor: 'rgba(123,110,246,0.1)',
+      borderRadius: BorderRadius.md,
+      padding: Spacing.md,
+    },
+    audioIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(123,110,246,0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalFooter: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+      padding: Spacing.xl,
+      borderTopWidth: 1,
+      borderTopColor: theme.borderLight,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: Spacing.lg,
+      borderRadius: BorderRadius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButton: {
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+    },
+    saveButton: {
+      backgroundColor: theme.primary,
+    },
+  });
+};
