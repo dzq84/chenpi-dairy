@@ -7,6 +7,11 @@ const router = express.Router();
 // 内存存储（替代 Supabase，重启后数据会丢失）
 let journalEntries: any[] = [];
 
+// 导出获取日记数据的函数，供回顾功能使用
+export function getJournalEntries() {
+  return journalEntries;
+}
+
 // 创建日记验证
 const insertJournalEntrySchema = z.object({
   user_id: z.string().optional(),

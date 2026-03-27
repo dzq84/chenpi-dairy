@@ -5,15 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
-  TextInput,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Keyboard,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useTheme } from '@/hooks/useTheme';
 import { Screen } from '@/components/Screen';
@@ -25,562 +17,251 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import Toast from 'react-native-toast-message';
 
-// 回顾类型
-type ReviewType = 'daily' | 'weekly' | 'monthly';
+interface Stats {
+  totalJournals: number;
+  todayJournals: number;
+  weekJournals: number;
+  totalReviews: number;
+  streak: number;
+  moodCounts: { happy: number; calm: number; sad: number };
+}
 
-// 回顾数据接口
 interface Review {
   id: string;
-  type: ReviewType;
+  type: string;
   date: string;
   title: string;
   summary: string;
   content: string;
-  keywords?: string[]; // 每周回顾的情绪关键词
-  modules?: string[]; // 每月回顾的模块（工作、生活、健康等）
-  images?: string[];
+  mood?: string;
+  keywords?: string[];
+  journalCount?: number;
   createdAt: string;
 }
 
 export default function ReviewScreen() {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const router = useSafeRouter();
   const styles = createStyles(theme);
-  const [selectedType, setSelectedType] = useState<ReviewType>('daily');
+  const [stats, setStats] = useState<Stats | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // 编辑相关状态
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingReview, setEditingReview] = useState<Review | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editSummary, setEditSummary] = useState('');
-  const [editContent, setEditContent] = useState('');
-  const [editImages, setEditImages] = useState<string[]>([]);
-
-  // 权限状态
-  const [libraryPermission, setLibraryPermission] = useState<'granted' | 'denied' | null>(null);
-
-  // 加载回顾数据
-  const loadReviews = async (type: ReviewType) => {
-    setLoading(true);
+  const loadData = async () => {
     try {
-      /**
-       * 服务端文件：server/src/routes/reviews.ts
-       * 接口：GET /api/v1/reviews?type=daily|weekly|monthly
-       */
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/reviews?type=${type}`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        setReviews(data.reviews || []);
+      const [statsRes, reviewsRes] = await Promise.all([
+        fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/reviews/stats`),
+        fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/reviews`),
+      ]);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
       }
-    } catch (error) {
-      console.error('加载回顾失败:', error);
+      if (reviewsRes.ok) {
+        const reviewsData = await reviewsRes.json();
+        setReviews(reviewsData.reviews || []);
+      }
+    } catch (e) {
+      console.error('加载数据失败:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // 下拉刷新
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadReviews(selectedType);
-  };
+  useEffect(() => {
+    setLoading(true);
+    loadData();
+  }, []);
 
-  // 类型切换
-  const handleTypeChange = (type: ReviewType) => {
-    setSelectedType(type);
-    loadReviews(type);
-  };
-
-  // 打开编辑弹窗
-  const handleEdit = (review: Review) => {
-    setEditingReview(review);
-    setEditTitle(review.title);
-    setEditSummary(review.summary);
-    setEditContent(review.content);
-    setEditImages(review.images || []);
-    setModalVisible(true);
-  };
-
-  // 添加图片
-  const handleAddImage = async () => {
-    if (libraryPermission !== 'granted') {
-      Toast.show({
-        type: 'error',
-        text1: '需要相册权限',
-        text2: '请在设置中开启相册权限',
-        position: 'bottom',
-        visibilityTime: 3000,
-      });
-      return;
-    }
-
+  const handleGenerate = async (type: string) => {
+    setGenerating(type);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-        allowsMultipleSelection: true,
+      const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/reviews/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
       });
-
-      if (!result.canceled && result.assets) {
-        const newImages = result.assets.map(asset => asset.uri);
-        setEditImages([...editImages, ...newImages]);
-      }
-    } catch (error) {
-      console.error('选择图片失败:', error);
-      Toast.show({
-        type: 'error',
-        text1: '选择图片失败',
-        position: 'bottom',
-        visibilityTime: 3000,
-      });
-    }
-  };
-
-  // 删除图片
-  const handleRemoveImage = (index: number) => {
-    setEditImages(editImages.filter((_, i) => i !== index));
-  };
-
-  // 保存编辑
-  const handleSaveEdit = async () => {
-    if (!editingReview) return;
-
-    if (!editTitle.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: '标题不能为空',
-        position: 'bottom',
-        visibilityTime: 3000,
-      });
-      return;
-    }
-
-    try {
-      /**
-       * 服务端文件：server/src/routes/reviews.ts
-       * 接口：PUT /api/v1/reviews/:id
-       * Body 参数：title: string, summary: string, content: string
-       */
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/reviews/${editingReview.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: editTitle,
-            summary: editSummary,
-            content: editContent,
-            images: editImages,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        Toast.show({
-          type: 'success',
-          text1: '编辑成功',
-          position: 'bottom',
-          visibilityTime: 3000,
-        });
-        setModalVisible(false);
-        loadReviews(selectedType);
+      const data = await res.json();
+      if (res.ok) {
+        Toast.show({ type: 'success', text1: '回顾生成成功', position: 'bottom' });
+        loadData();
       } else {
-        throw new Error('编辑失败');
+        Toast.show({ type: 'error', text1: data.error || '生成失败', position: 'bottom' });
       }
-    } catch (error) {
-      console.error('编辑回顾失败:', error);
-      Toast.show({
-        type: 'error',
-        text1: '编辑失败，请重试',
-        position: 'bottom',
-        visibilityTime: 3000,
-      });
+    } catch (e) {
+      Toast.show({ type: 'error', text1: '生成失败', position: 'bottom' });
+    } finally {
+      setGenerating('');
     }
   };
 
-  // 删除回顾
-  const handleDelete = async (review: Review) => {
-    Alert.alert(
-      '确认删除',
-      '确定要删除这条回顾吗？此操作不可恢复。',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              /**
-               * 服务端文件：server/src/routes/reviews.ts
-               * 接口：DELETE /api/v1/reviews/:id
-               */
-              const response = await fetch(
-                `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/reviews/${review.id}`,
-                {
-                  method: 'DELETE',
-                }
-              );
-
-              if (response.ok) {
-                Toast.show({
-                  type: 'success',
-                  text1: '删除成功',
-                  position: 'bottom',
-                  visibilityTime: 3000,
-                });
-                loadReviews(selectedType);
-              } else {
-                throw new Error('删除失败');
-              }
-            } catch (error) {
-              console.error('删除回顾失败:', error);
-              Toast.show({
-                type: 'error',
-                text1: '删除失败，请重试',
-                position: 'bottom',
-                visibilityTime: 3000,
-              });
-            }
-          },
-        },
-      ]
-    );
+  const getMoodEmoji = (mood?: string) => {
+    switch (mood) {
+      case 'happy': return '😊';
+      case 'sad': return '😢';
+      case 'mixed': return '🤔';
+      default: return '😌';
+    }
   };
 
-  // 初始加载
-  useEffect(() => {
-    loadReviews('daily');
-  }, []);
-
-  // 申请相册权限
-  useEffect(() => {
-    (async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      setLibraryPermission(status === 'granted' ? 'granted' : 'denied');
-    })();
-  }, []);
+  const getCardBg = (index: number) => {
+    const colors = [theme.cardPeach, theme.cardSage, theme.cardPeriwinkle];
+    return colors[index % colors.length];
+  };
 
   return (
-    <Screen
-      backgroundColor={theme.backgroundRoot}
-      statusBarStyle="dark"
-    >
-      {/* 头部 */}
-      <ThemedView level="root" style={styles.header}>
-        <ThemedText variant="h1" color={theme.textPrimary} style={styles.title}>
-          回顾列表
-        </ThemedText>
-        <ThemedText variant="body" color={theme.textMuted} style={styles.subtitle}>
-          看见自己的成长轨迹
-        </ThemedText>
-      </ThemedView>
-
-      {/* 类型选择器 */}
-      <ThemedView level="root" style={styles.typeSelector}>
-        {[
-          { type: 'daily' as ReviewType, label: '每日回顾' },
-          { type: 'weekly' as ReviewType, label: '每周回顾' },
-          { type: 'monthly' as ReviewType, label: '每月回顾' },
-        ].map((item) => (
-          <TouchableOpacity
-            key={item.type}
-            style={[
-              styles.typeButton,
-              selectedType === item.type && styles.typeButtonActive,
-            ]}
-            onPress={() => handleTypeChange(item.type)}
-          >
-            <ThemedText
-              variant="smallMedium"
-              color={selectedType === item.type ? theme.buttonPrimaryText : theme.textSecondary}
-              style={styles.typeButtonText}
-            >
-              {item.label}
-            </ThemedText>
-          </TouchableOpacity>
-        ))}
-      </ThemedView>
-
-      {/* 回顾列表 */}
+    <Screen backgroundColor={theme.backgroundRoot} statusBarStyle="dark">
       <ScrollView
-        style={styles.listContainer}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.primary}
-          />
-        }
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {loading && reviews.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-          </View>
-        ) : reviews.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <FontAwesome6 name="calendar-xmark" size={48} color={theme.textMuted} style={styles.emptyIcon} />
-            <ThemedText variant="body" color={theme.textMuted} style={styles.emptyText}>
-              暂无{selectedType === 'daily' ? '每日' : selectedType === 'weekly' ? '每周' : '每月'}回顾
-            </ThemedText>
-            <ThemedText variant="caption" color={theme.textMuted} style={styles.emptySubtext}>
-              记录更多日记和对话后生成
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <ThemedText variant="body" color={theme.textSecondary}>你的成长轨迹</ThemedText>
+            <ThemedText variant="h1" color={theme.textPrimary} style={styles.heroTitle}>
+              心灵{'\n'}回顾
             </ThemedText>
           </View>
-        ) : (
-          reviews.map((review) => (
+        </View>
+
+        {/* 统计大卡片 - 蜜桃色 */}
+        <View style={[styles.statHeroCard, { backgroundColor: theme.cardPeach }]}>
+          <ThemedText style={styles.statLabel} color={theme.textPrimary}>累计记录</ThemedText>
+          <ThemedText style={styles.statHeroNumber} color={theme.textPrimary}>
+            {stats?.totalJournals || 0}
+          </ThemedText>
+          <ThemedText style={styles.statUnit} color={theme.textPrimary}>篇日记</ThemedText>
+          <View style={styles.statHeroAction}>
+            <ThemedText style={{ fontSize: 14, fontWeight: '500' }} color={theme.textPrimary}>
+              连续记录 {stats?.streak || 0} 天
+            </ThemedText>
+            <ThemedText color={theme.textPrimary}>→</ThemedText>
+          </View>
+        </View>
+
+        {/* 2x2 网格指标 */}
+        <View style={styles.grid2}>
+          <View style={[styles.metricCard, { backgroundColor: theme.cardSage }]}>
+            <ThemedText style={styles.statLabel} color={theme.textPrimary}>今日</ThemedText>
+            <ThemedText style={styles.metricNumber} color={theme.textPrimary}>
+              {stats?.todayJournals || 0}
+            </ThemedText>
+            <ThemedText style={styles.metricUnit} color={theme.textSecondary}>篇</ThemedText>
+          </View>
+          <View style={[styles.metricCard, { backgroundColor: theme.cardPeriwinkle }]}>
+            <ThemedText style={styles.statLabel} color={theme.textPrimary}>本周</ThemedText>
+            <ThemedText style={styles.metricNumber} color={theme.textPrimary}>
+              {stats?.weekJournals || 0}
+            </ThemedText>
+            <ThemedText style={styles.metricUnit} color={theme.textSecondary}>篇</ThemedText>
+          </View>
+        </View>
+
+        {/* AI 生成回顾 - 描边卡片 */}
+        <View style={styles.generateCard}>
+          <ThemedText variant="h3" color={theme.textPrimary} style={{ marginBottom: 8 }}>
+            AI 生成回顾
+          </ThemedText>
+          <ThemedText variant="body" color={theme.textSecondary} style={{ marginBottom: 16 }}>
+            根据你的日记，AI 会为你生成温暖的回顾总结。
+          </ThemedText>
+
+          {[
+            { type: 'daily', label: '今日回顾', icon: 'sun' },
+            { type: 'weekly', label: '本周回顾', icon: 'calendar-week' },
+            { type: 'monthly', label: '本月回顾', icon: 'calendar' },
+          ].map((item) => (
             <TouchableOpacity
-              key={review.id}
-              onPress={() => router.push('/review-detail', { id: review.id, type: review.type })}
-              activeOpacity={0.7}
+              key={item.type}
+              style={styles.generateItem}
+              onPress={() => handleGenerate(item.type)}
+              disabled={!!generating}
             >
-              <ThemedView level="root" style={styles.reviewCard}>
-              {/* 缩略图 */}
-              {review.images && review.images.length > 0 && (
-                <Image
-                  source={{ uri: review.images[0] }}
-                  style={styles.reviewThumbnail}
-                  resizeMode="cover"
-                />
-              )}
-
-              <View style={styles.reviewHeader}>
-                <View style={styles.reviewDate}>
-                  <FontAwesome6 name="calendar" size={14} color={theme.primary} />
-                  <ThemedText variant="caption" color={theme.textSecondary}>
-                    {dayjs(review.date).format('YYYY年M月D日')}
-                  </ThemedText>
+              <View style={styles.generateItemLeft}>
+                <View style={styles.generateIcon}>
+                  {generating === item.type ? (
+                    <ActivityIndicator size="small" color={theme.textPrimary} />
+                  ) : (
+                    <FontAwesome6 name={item.icon as any} size={16} color={theme.textPrimary} />
+                  )}
                 </View>
-                <View style={styles.reviewType}>
-                  <ThemedText
-                    variant="caption"
-                    color={theme.primary}
-                    style={styles.reviewTypeText}
-                  >
-                    {review.type === 'daily' ? '每日' : review.type === 'weekly' ? '每周' : '每月'}
-                  </ThemedText>
-                </View>
+                <ThemedText variant="bodyMedium" color={theme.textPrimary}>{item.label}</ThemedText>
               </View>
-
-              <ThemedText variant="title" color={theme.textPrimary} style={styles.reviewTitle}>
-                {review.title}
-              </ThemedText>
-
-              <ThemedText variant="body" color={theme.textSecondary} style={styles.reviewSummary} numberOfLines={2}>
-                {review.summary}
-              </ThemedText>
-
-              {/* 每周回顾的情绪关键词 */}
-              {review.keywords && review.keywords.length > 0 && (
-                <View style={styles.keywordsContainer}>
-                  {review.keywords.map((keyword, index) => (
-                    <View key={index} style={styles.keyword}>
-                      <ThemedText variant="caption" color={theme.textSecondary}>
-                        {keyword}
-                      </ThemedText>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* 每月回顾的模块标签 */}
-              {review.modules && review.modules.length > 0 && (
-                <View style={styles.modulesContainer}>
-                  {review.modules.map((module, index) => (
-                    <View key={index} style={styles.module}>
-                      <FontAwesome6 name="tag" size={12} color={theme.primary} />
-                      <ThemedText variant="caption" color={theme.textSecondary} style={styles.moduleText}>
-                        {module}
-                      </ThemedText>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={styles.reviewFooter}>
-                <ThemedText variant="caption" color={theme.textMuted}>
-                  生成于 {dayjs(review.createdAt).format('HH:mm')}
-                </ThemedText>
-                <View style={styles.reviewActions}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleEdit(review)}
-                  >
-                    <FontAwesome6 name="pen" size={14} color={theme.textMuted} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleDelete(review)}
-                  >
-                    <FontAwesome6 name="trash" size={14} color={theme.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ThemedView>
+              <ThemedText color={theme.textMuted}>→</ThemedText>
             </TouchableOpacity>
-          ))
+          ))}
+        </View>
+
+        {/* 心情统计 - 蓝色卡 */}
+        {stats && (stats.moodCounts.happy > 0 || stats.moodCounts.calm > 0 || stats.moodCounts.sad > 0) && (
+          <View style={[styles.moodCard, { backgroundColor: theme.cardPeriwinkle }]}>
+            <ThemedText style={styles.statLabel} color={theme.textPrimary}>心情分布</ThemedText>
+            <View style={styles.moodRow}>
+              <View style={styles.moodItem}>
+                <ThemedText style={{ fontSize: 28 }}>😊</ThemedText>
+                <ThemedText style={styles.moodCount} color={theme.textPrimary}>{stats.moodCounts.happy}</ThemedText>
+              </View>
+              <View style={styles.moodItem}>
+                <ThemedText style={{ fontSize: 28 }}>😌</ThemedText>
+                <ThemedText style={styles.moodCount} color={theme.textPrimary}>{stats.moodCounts.calm}</ThemedText>
+              </View>
+              <View style={styles.moodItem}>
+                <ThemedText style={{ fontSize: 28 }}>😢</ThemedText>
+                <ThemedText style={styles.moodCount} color={theme.textPrimary}>{stats.moodCounts.sad}</ThemedText>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 历史回顾列表 */}
+        {reviews.length > 0 && (
+          <>
+            <ThemedText style={styles.sectionTitle} color={theme.textPrimary}>历史回顾</ThemedText>
+            {reviews.map((review, index) => (
+              <TouchableOpacity
+                key={review.id}
+                style={[styles.reviewCard, { backgroundColor: getCardBg(index) }]}
+                onPress={() => router.push('/review-detail', { id: review.id })}
+                activeOpacity={0.8}
+              >
+                <View style={styles.reviewCardHeader}>
+                  <ThemedText style={styles.statLabel} color={theme.textPrimary}>
+                    {review.type === 'daily' ? '每日' : review.type === 'weekly' ? '每周' : '每月'}回顾
+                  </ThemedText>
+                  <ThemedText style={{ fontSize: 20 }}>{getMoodEmoji(review.mood)}</ThemedText>
+                </View>
+                <ThemedText style={styles.reviewCardTitle} color={theme.textPrimary}>
+                  {review.title}
+                </ThemedText>
+                <ThemedText style={styles.reviewCardSummary} color={theme.textPrimary} numberOfLines={2}>
+                  {review.summary}
+                </ThemedText>
+                {review.keywords && review.keywords.length > 0 && (
+                  <View style={styles.keywordsRow}>
+                    {review.keywords.map((kw, i) => (
+                      <View key={i} style={styles.keywordTag}>
+                        <ThemedText style={{ fontSize: 12 }} color={theme.textPrimary}>{kw}</ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <View style={styles.reviewCardFooter}>
+                  <ThemedText style={{ fontSize: 13, opacity: 0.6 }} color={theme.textPrimary}>
+                    {dayjs(review.createdAt).format('M月D日 HH:mm')}
+                  </ThemedText>
+                  <ThemedText style={{ fontSize: 14, fontWeight: '500' }} color={theme.textPrimary}>
+                    查看详情 →
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </>
         )}
       </ScrollView>
-
-      {/* 编辑弹窗 */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(false)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.keyboardContainer}
-          >
-            <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss}>
-              <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  {/* Header */}
-                  <View style={styles.modalHeader}>
-                    <ThemedText variant="h3" color={theme.textPrimary} style={styles.modalTitle}>
-                      编辑回顾
-                    </ThemedText>
-                    <TouchableOpacity onPress={() => setModalVisible(false)}>
-                      <FontAwesome6 name="xmark" size={20} color={theme.textMuted} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Body */}
-                  <ScrollView style={styles.modalBody}>
-                    {/* 标题输入 */}
-                    <ThemedView level="root" style={styles.inputContainer}>
-                      <ThemedText variant="smallMedium" color={theme.textSecondary} style={styles.inputLabel}>
-                        标题
-                      </ThemedText>
-                      <TextInput
-                        style={styles.input}
-                        value={editTitle}
-                        onChangeText={setEditTitle}
-                        placeholder="输入回顾标题"
-                        placeholderTextColor={theme.textMuted}
-                        multiline
-                      />
-                    </ThemedView>
-
-                    {/* 摘要输入 */}
-                    <ThemedView level="root" style={styles.inputContainer}>
-                      <ThemedText variant="smallMedium" color={theme.textSecondary} style={styles.inputLabel}>
-                        摘要
-                      </ThemedText>
-                      <TextInput
-                        style={[styles.input, styles.textArea]}
-                        value={editSummary}
-                        onChangeText={setEditSummary}
-                        placeholder="输入回顾摘要"
-                        placeholderTextColor={theme.textMuted}
-                        multiline
-                        numberOfLines={3}
-                      />
-                    </ThemedView>
-
-                    {/* 内容输入 */}
-                    <ThemedView level="root" style={styles.inputContainer}>
-                      <ThemedText variant="smallMedium" color={theme.textSecondary} style={styles.inputLabel}>
-                        内容
-                      </ThemedText>
-                      <TextInput
-                        style={[styles.input, styles.textArea]}
-                        value={editContent}
-                        onChangeText={setEditContent}
-                        placeholder="输入回顾内容"
-                        placeholderTextColor={theme.textMuted}
-                        multiline
-                        numberOfLines={5}
-                      />
-                    </ThemedView>
-
-                    {/* 图片编辑 */}
-                    <ThemedView level="root" style={styles.inputContainer}>
-                      <View style={styles.sectionHeader}>
-                        <ThemedText variant="smallMedium" color={theme.textSecondary} style={styles.inputLabel}>
-                          图片
-                        </ThemedText>
-                        <TouchableOpacity
-                          style={styles.addImageButton}
-                          onPress={handleAddImage}
-                        >
-                          <FontAwesome6 name="plus" size={14} color={theme.primary} />
-                          <ThemedText variant="caption" color={theme.primary} style={styles.addImageText}>
-                            添加图片
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* 图片预览 */}
-                      {editImages.length > 0 && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                          <View style={styles.imagePreviewContainer}>
-                            {editImages.map((imageUrl, index) => (
-                              <View key={index} style={styles.imagePreviewItem}>
-                                <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
-                                <TouchableOpacity
-                                  style={styles.removeImageButton}
-                                  onPress={() => handleRemoveImage(index)}
-                                >
-                                  <FontAwesome6 name="xmark" size={14} color="#FFFFFF" />
-                                </TouchableOpacity>
-                              </View>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      )}
-
-                      {editImages.length === 0 && (
-                        <View style={styles.emptyImages}>
-                          <FontAwesome6 name="images" size={32} color={theme.textMuted} />
-                          <ThemedText variant="caption" color={theme.textMuted} style={styles.emptyImagesText}>
-                            暂无图片，点击上方按钮添加
-                          </ThemedText>
-                        </View>
-                      )}
-                    </ThemedView>
-                  </ScrollView>
-
-                  {/* Footer */}
-                  <View style={styles.modalFooter}>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.cancelButton]}
-                      onPress={() => setModalVisible(false)}
-                    >
-                      <ThemedText variant="smallMedium" color={theme.textSecondary}>
-                        取消
-                      </ThemedText>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.submitButton]}
-                      onPress={handleSaveEdit}
-                    >
-                      <ThemedText variant="smallMedium" color={theme.buttonPrimaryText}>
-                        保存
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </TouchableOpacity>
-      </Modal>
     </Screen>
   );
 }
